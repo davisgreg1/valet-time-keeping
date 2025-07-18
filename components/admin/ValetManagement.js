@@ -6,6 +6,10 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  where,
+  orderBy,
+  limit,
+  addDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -27,7 +31,7 @@ export default function ValetManagement({ adminUser }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [editingValet, setEditingValet] = useState(null);
+  const [editingValet, setEditingValet] = useState(null); // Used for edit button, can be implemented later
   const [showAddModal, setShowAddModal] = useState(false);
 
   const fetchValets = useCallback(async () => {
@@ -83,9 +87,71 @@ export default function ValetManagement({ adminUser }) {
     filterValets();
   }, [filterValets]);
 
-  const toggleValetStatus = async (valetId, currentStatus, valetName) => {
+  // Function to check if valet is currently clocked in
+  const isValetClockedIn = async (valetId) => {
+    try {
+      const lastActionQuery = query(
+        collection(db, "clockIns"),
+        where("valetId", "==", valetId),
+        orderBy("timestamp", "desc"),
+        limit(1)
+      );
+
+      const lastActionSnapshot = await getDocs(lastActionQuery);
+      if (!lastActionSnapshot.empty) {
+        const lastAction = lastActionSnapshot.docs[0].data();
+        return lastAction.action === "clock_in";
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking valet clock status:", error);
+      return false;
+    }
+  };
+
+  // Function to automatically clock out a valet
+  const autoClockOutValet = async (valetId, valetEmail) => {
+    try {
+      // Create a clock-out record
+      const clockOutData = {
+        valetId: valetId,
+        valetEmail: valetEmail,
+        action: "clock_out",
+        timestamp: new Date().toISOString(),
+        location: {
+          latitude: null,
+          longitude: null,
+          accuracy: null,
+          formatted: "System Auto Clock-Out",
+          address: "Automatically clocked out due to account deactivation",
+          shortAddress: "Auto Clock-Out",
+          geocoded: false,
+        },
+        deviceInfo: {
+          userAgent: "System Admin",
+          platform: "Admin Dashboard",
+        },
+        autoClockOut: true,
+        reason: "Account deactivated by administrator",
+        adminId: adminUser?.uid || "unknown",
+      };
+
+      await addDoc(collection(db, "clockIns"), clockOutData);
+      return true;
+    } catch (error) {
+      console.error("Error auto-clocking out valet:", error);
+      return false;
+    }
+  };
+
+  const toggleValetStatus = async (
+    valetId,
+    currentStatus,
+    valetName,
+    valetEmail
+  ) => {
     const action = currentStatus ? "deactivate" : "activate";
-    const actionPast = currentStatus ? "deactivated" : "activated";
+    // const actionPast = currentStatus ? "deactivated" : "activated"; // Not used
 
     // Show confirmation for deactivation
     if (currentStatus) {
@@ -94,6 +160,7 @@ export default function ValetManagement({ adminUser }) {
           `This will:\n` +
           `• Prevent them from logging in\n` +
           `• Block future clock-ins\n` +
+          `• Automatically clock them out if currently clocked in\n` +
           `• Keep all their historical data\n\n` +
           `You can reactivate them later if needed.`
       );
@@ -102,6 +169,22 @@ export default function ValetManagement({ adminUser }) {
     }
 
     try {
+      // If deactivating, check if valet is currently clocked in
+      let wasAutoClockOut = false;
+      if (currentStatus) {
+        const isClockedIn = await isValetClockedIn(valetId);
+        if (isClockedIn) {
+          const clockOutSuccess = await autoClockOutValet(valetId, valetEmail);
+          if (clockOutSuccess) {
+            wasAutoClockOut = true;
+          } else {
+            toast.error("Failed to auto clock-out valet. Please try again.");
+            return;
+          }
+        }
+      }
+
+      // Update valet status
       const valetRef = doc(db, "valets", valetId);
       await updateDoc(valetRef, {
         isActive: !currentStatus,
@@ -118,9 +201,12 @@ export default function ValetManagement({ adminUser }) {
       );
 
       if (currentStatus) {
+        const clockOutMessage = wasAutoClockOut
+          ? " They have been automatically clocked out."
+          : "";
         toast.success(
-          `${valetName} has been deactivated. They can no longer access the system.`,
-          { duration: 5000 }
+          `${valetName} has been deactivated. They can no longer access the system.${clockOutMessage}`,
+          { duration: 6000 }
         );
       } else {
         toast.success(
@@ -220,7 +306,8 @@ export default function ValetManagement({ adminUser }) {
               </h3>
               <p className="text-sm text-blue-700 mt-1">
                 <strong>Deactivate:</strong> Blocks login and clock-ins while
-                preserving data. Use for temporary suspension.
+                preserving data. If the valet is currently clocked in, they will
+                be automatically clocked out.
                 <br />
                 <strong>Delete:</strong> Permanently removes valet and all their
                 data. Cannot be undone.
@@ -241,12 +328,12 @@ export default function ValetManagement({ adminUser }) {
               className="form-input pl-10"
             />
           </div>
-          <div className="relative">
+          <div className="relative sm:w-48">
             <Filter className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="form-input pl-10 pr-8 appearance-none"
+              className="form-input pl-10 pr-8 appearance-none w-full"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
@@ -255,8 +342,105 @@ export default function ValetManagement({ adminUser }) {
           </div>
         </div>
 
-        {/* Valets Table */}
-        <div className="overflow-x-auto">
+        {/* Mobile Card View */}
+        <div className="block md:hidden space-y-4">
+          {filteredValets.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              {valets.length === 0
+                ? "No valets found"
+                : "No valets match your filters"}
+            </div>
+          ) : (
+            filteredValets.map((valet) => (
+              <div
+                key={valet.id}
+                className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold text-gray-900 truncate">
+                      {valet.fullName || "N/A"}
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1 truncate">
+                      {valet.email}
+                    </p>
+                    {valet.phoneNumber && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        {valet.phoneNumber}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className={`inline-flex px-3 py-1 text-sm font-medium rounded-full ml-3 flex-shrink-0 ${
+                      valet.isActive
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {valet.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
+                  <div>
+                    <span className="font-medium">Employee ID:</span>
+                    <div className="text-gray-900">
+                      {valet.employeeId || "Not set"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium">Joined:</span>
+                    <div className="text-gray-900">
+                      {formatDate(valet.createdAt)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() =>
+                      toggleValetStatus(
+                        valet.id,
+                        valet.isActive,
+                        valet.fullName,
+                        valet.email
+                      )
+                    }
+                    className={`w-full px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                      valet.isActive
+                        ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border border-yellow-300"
+                        : "bg-green-100 text-green-800 hover:bg-green-200 border border-green-300"
+                    }`}
+                  >
+                    {valet.isActive ? "Deactivate Valet" : "Activate Valet"}
+                  </button>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingValet(valet)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
+                      title="Edit valet"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteValet(valet.id, valet.fullName)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors"
+                      title="Delete valet"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -336,33 +520,34 @@ export default function ValetManagement({ adminUser }) {
                             toggleValetStatus(
                               valet.id,
                               valet.isActive,
-                              valet.fullName
+                              valet.fullName,
+                              valet.email
                             )
                           }
-                          className={`px-3 py-1 text-xs rounded transition-colors ${
+                          className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                             valet.isActive
-                              ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                              : "bg-green-100 text-green-700 hover:bg-green-200"
+                              ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border border-yellow-300"
+                              : "bg-green-100 text-green-800 hover:bg-green-200 border border-green-300"
                           }`}
                           title={
                             valet.isActive
-                              ? "Deactivate valet (blocks login)"
-                              : "Reactivate valet"
+                              ? "Deactivate valet"
+                              : "Activate valet"
                           }
                         >
                           {valet.isActive ? "Deactivate" : "Activate"}
                         </button>
                         <button
                           onClick={() => setEditingValet(valet)}
-                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                          className="px-3 py-2 rounded-lg text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
                           title="Edit valet"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => deleteValet(valet.id, valet.fullName)}
-                          className="text-red-600 hover:text-red-900 transition-colors"
-                          title="Permanently delete valet"
+                          className="px-3 py-2 rounded-lg text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors"
+                          title="Delete valet"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

@@ -114,6 +114,35 @@ export default function LiveActivity() {
     });
   };
 
+  const formatDateTime = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const isYesterday =
+      new Date(now - 24 * 60 * 60 * 1000).toDateString() ===
+      date.toDateString();
+
+    if (isToday) {
+      return `Today ${date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } else if (isYesterday) {
+      return `Yesterday ${date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } else {
+      return `${date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })} ${date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    }
+  };
+
   const formatRelativeTime = (timestamp) => {
     const now = new Date();
     const time = new Date(timestamp);
@@ -136,25 +165,30 @@ export default function LiveActivity() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <LoadingSpinner />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+          <div className="flex items-center justify-center py-8">
+            <LoadingSpinner />
+          </div>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <LoadingSpinner />
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+          <div className="flex items-center justify-center py-8">
+            <LoadingSpinner />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <Activity className="w-5 h-5" />
-            Recent Activity
+            <span className="hidden sm:inline">Recent Activity</span>
+            <span className="sm:hidden">Activity</span>
           </h3>
           <div className="flex items-center gap-2">
             <button
@@ -184,34 +218,36 @@ export default function LiveActivity() {
                 key={activity.id}
                 className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div
-                    className={`w-3 h-3 rounded-full ${
+                    className={`w-3 h-3 rounded-full flex-shrink-0 ${
                       activity.action === "clock_in"
                         ? "bg-green-500"
                         : "bg-red-500"
                     }`}
                   ></div>
-                  <div>
-                    <div className="font-medium text-gray-900">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 text-sm truncate">
                       {activity.valetEmail?.split("@")[0] || "Unknown Valet"}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs text-gray-500">
                       {activity.action === "clock_in"
                         ? "Clocked in"
                         : "Clocked out"}
                     </div>
                     {activity.location?.shortAddress && (
-                      <div className="text-xs text-gray-400 flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {activity.location.shortAddress}
+                      <div className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                        <MapPin className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">
+                          {activity.location.shortAddress}
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900">
-                    {formatTime(activity.timestamp)}
+                <div className="text-right flex-shrink-0 ml-2">
+                  <div className="text-xs sm:text-sm font-medium text-gray-900">
+                    {formatDateTime(activity.timestamp)}
                   </div>
                   <div className="text-xs text-gray-500">
                     {formatRelativeTime(activity.timestamp)}
@@ -224,10 +260,14 @@ export default function LiveActivity() {
       </div>
 
       {/* Currently Active Valets */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Clock className="w-5 h-5" />
-          Currently Active ({activeValets.length})
+          <span>
+            <span className="hidden sm:inline">Currently Active</span>
+            <span className="sm:hidden">Active</span>
+            <span className="ml-1">({activeValets.length})</span>
+          </span>
         </h3>
 
         <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -239,28 +279,30 @@ export default function LiveActivity() {
             activeValets.map((valet) => (
               <div
                 key={valet.id}
-                className="p-4 border border-gray-200 rounded-lg"
+                className="p-3 sm:p-4 border border-gray-200 rounded-lg"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-600" />
-                    <span className="font-medium text-gray-900">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <User className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                    <span className="font-medium text-gray-900 text-sm truncate">
                       {valet.fullName || valet.email?.split("@")[0]}
                     </span>
                   </div>
-                  <span className="text-sm text-green-600 font-medium">
+                  <span className="text-sm text-green-600 font-medium flex-shrink-0 ml-2">
                     {getWorkingHours(valet.lastClockIn)}h
                   </span>
                 </div>
 
-                <div className="text-sm text-gray-600">
-                  Clocked in: {formatTime(valet.lastClockIn)}
+                <div className="text-xs sm:text-sm text-gray-600 mb-1">
+                  Clocked in: {formatDateTime(valet.lastClockIn)}
                 </div>
 
                 {valet.location?.shortAddress && (
-                  <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                    <MapPin className="w-3 h-3" />
-                    {valet.location.shortAddress}
+                  <div className="text-xs text-gray-500 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">
+                      {valet.location.shortAddress}
+                    </span>
                   </div>
                 )}
               </div>
