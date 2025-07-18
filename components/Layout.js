@@ -1,18 +1,54 @@
-import { LogOut, User } from "lucide-react";
-import { logOut } from "../lib/auth";
-import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { useEffect } from 'react';
+import { LogOut, User } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
+import { logOut } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 export default function Layout({ children, user, userProfile }) {
   const router = useRouter();
 
+  // Continuous status monitoring for valets
+  useEffect(() => {
+    if (!user) return;
+
+    const checkValetStatus = async () => {
+      try {
+        // Only check valet status, not admin status
+        const valetRef = doc(db, 'valets', user.uid);
+        const valetDoc = await getDoc(valetRef);
+
+        if (valetDoc.exists()) {
+          const valetData = valetDoc.data();
+          
+          // If valet is deactivated, sign them out immediately
+          if (valetData.isActive === false) {
+            toast.error('Your account has been deactivated. You will be signed out.');
+            await auth.signOut();
+            router.push('/auth/login');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking valet status:', error);
+        // Don't sign out on error to avoid disrupting legitimate users
+      }
+    };
+
+    // Check status every 30 seconds for real-time enforcement
+    const interval = setInterval(checkValetStatus, 30000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, [user, router]);
+
   const handleLogout = async () => {
     const result = await logOut();
     if (result.success) {
-      toast.success("Logged out successfully");
-      router.push("/auth/login");
+      toast.success('Logged out successfully');
+      router.push('/auth/login');
     } else {
-      toast.error("Failed to log out");
+      toast.error('Failed to log out');
     }
   };
 
@@ -23,9 +59,11 @@ export default function Layout({ children, user, userProfile }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-red-600">Vicar Parking</h1>
+              <h1 className="text-2xl font-bold text-red-600">
+                Vicar Parking
+              </h1>
             </div>
-
+            
             {user && (
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
