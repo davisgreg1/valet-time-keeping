@@ -45,12 +45,12 @@ export default function Login() {
       // Force token refresh to get latest claims
       await user.getIdToken(true);
 
-      // Check if user is an admin first
+      // Check if user is an admin first (dedicated admin account)
       const adminRef = doc(db, "admins", user.uid);
       const adminDoc = await getDoc(adminRef);
 
       if (adminDoc.exists()) {
-        // User is an admin
+        // User is a dedicated admin
         toast.success("Admin login successful!");
         router.push("/admin");
         setIsLoading(false);
@@ -76,7 +76,18 @@ export default function Login() {
           return;
         }
 
-        // Valet is active - update last login and proceed
+        // Check if valet has admin privileges
+        if (valetData.isAdmin === true) {
+          // Valet has been promoted to admin
+          toast.success(
+            "Admin access granted! Welcome to the admin dashboard."
+          );
+          router.push("/admin");
+          setIsLoading(false);
+          return;
+        }
+
+        // Valet is active - update last login and proceed to valet dashboard
         try {
           await updateDoc(valetRef, {
             lastLogin: new Date().toISOString(),
