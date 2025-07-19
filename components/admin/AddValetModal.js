@@ -87,6 +87,8 @@ export default function AddValetModal({
           if (onValetAdded) {
             onValetAdded();
           }
+          toast.success("Valet account created successfully!");
+          onClose();
         } else {
           toast.error(result.error || "Failed to create valet account");
         }
