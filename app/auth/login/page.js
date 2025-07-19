@@ -76,6 +76,17 @@ export default function Login() {
           return;
         }
 
+        // Check if valet has admin privileges
+        if (valetData.isAdmin === true) {
+          // Valet has been promoted to admin
+          toast.success(
+            "Admin access granted! Welcome to the admin dashboard."
+          );
+          router.push("/admin");
+          setIsLoading(false);
+          return;
+        }
+
         // Valet is active - update last login and proceed
         try {
           await updateDoc(valetRef, {

@@ -8,6 +8,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { logOut } from "@/lib/auth";
 import { useRouter } from "next/navigation";
@@ -67,10 +68,14 @@ export default function AdminLayout({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-xl sm:text-2xl font-bold text-red-600">
-                <span className="hidden sm:inline">Vicar Parking Admin</span>
-                <span className="sm:hidden">Vicar Admin</span>
-              </h1>
+              <Link href="/dashboard">
+                <h1 className="text-xl sm:text-2xl font-bold text-red-600">
+                  <span className="hidden sm:inline cursor-pointer">
+                    Vicar Parking Admin
+                  </span>
+                  <span className="sm:hidden cursor-pointer">Vicar Admin</span>
+                </h1>
+              </Link>
               <div className="ml-2 sm:ml-4 flex items-center gap-2 px-2 sm:px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs sm:text-sm">
                 <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
                 Admin

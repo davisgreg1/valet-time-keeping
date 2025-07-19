@@ -19,6 +19,7 @@ import {
   Plus,
   Search,
   Filter,
+  Shield,
   AlertTriangle,
 } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -219,6 +220,53 @@ export default function ValetManagement({ adminUser }) {
     }
   };
 
+  const toggleAdminRole = async (valetId, currentAdminStatus, valetName) => {
+    const action = currentAdminStatus
+      ? "remove admin access from"
+      : "promote to admin";
+
+    const confirmed = confirm(
+      `Are you sure you want to ${action} ${valetName}?\n\n` +
+        (currentAdminStatus
+          ? `This will:\n• Remove their admin dashboard access\n• They'll return to regular valet functions\n• Keep all their valet data intact`
+          : `This will:\n• Grant them admin dashboard access\n• Allow them to manage other valets\n• Give them access to reports and analytics\n• They'll retain valet clock-in abilities`) +
+        `\n\nThis action can be reversed later.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const valetRef = doc(db, "valets", valetId);
+      await updateDoc(valetRef, {
+        isAdmin: !currentAdminStatus,
+        updatedAt: new Date().toISOString(),
+        [`${currentAdminStatus ? "adminRemovedBy" : "adminPromotedBy"}`]:
+          adminUser?.uid || "unknown",
+        [`${currentAdminStatus ? "adminRemovedAt" : "adminPromotedAt"}`]:
+          new Date().toISOString(),
+      });
+
+      setValets((prev) =>
+        prev.map((valet) =>
+          valet.id === valetId
+            ? { ...valet, isAdmin: !currentAdminStatus }
+            : valet
+        )
+      );
+
+      const actionPast = currentAdminStatus
+        ? "removed admin access from"
+        : "promoted to admin";
+      toast.success(
+        `${valetName} has been ${actionPast}. Changes will take effect on their next login.`,
+        { duration: 6000 }
+      );
+    } catch (error) {
+      console.error("Error updating admin role:", error);
+      toast.error(`Failed to update admin role for ${valetName}`);
+    }
+  };
+
   const deleteValet = async (valetId, valetName) => {
     const confirmed = confirm(
       `⚠️ WARNING: Delete ${valetName}?\n\n` +
@@ -358,9 +406,17 @@ export default function ValetManagement({ adminUser }) {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-semibold text-gray-900 truncate">
-                      {valet.fullName || "N/A"}
-                    </h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-base font-semibold text-gray-900 truncate">
+                        {valet.fullName || "N/A"}
+                      </h3>
+                      {valet.isAdmin && (
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full flex-shrink-0">
+                          <Shield className="w-3 h-3 mr-1" />
+                          Admin
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600 mt-1 truncate">
                       {valet.email}
                     </p>
@@ -382,15 +438,15 @@ export default function ValetManagement({ adminUser }) {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
-                  <div>
+                  <div className="flex">
                     <span className="font-medium">Employee ID:</span>
-                    <div className="text-gray-900">
+                    <div className="text-gray-900 pl-1">
                       {valet.employeeId || "Not set"}
                     </div>
                   </div>
-                  <div>
+                  <div className="flex">
                     <span className="font-medium">Joined:</span>
-                    <div className="text-gray-900">
+                    <div className="text-gray-900 pl-1">
                       {formatDate(valet.createdAt)}
                     </div>
                   </div>
@@ -414,6 +470,20 @@ export default function ValetManagement({ adminUser }) {
                   >
                     {valet.isActive ? "Deactivate Valet" : "Activate Valet"}
                   </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() =>
+                        toggleAdminRole(valet.id, valet.isAdmin, valet.fullName)
+                      }
+                      className={`flex-1 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                        valet.isAdmin
+                          ? "bg-purple-100 text-purple-800 hover:bg-purple-200 border border-purple-300"
+                          : "bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-300"
+                      }`}
+                    >
+                      {valet.isAdmin ? "Remove Admin" : "Make Admin"}
+                    </button>
+                  </div>
 
                   <div className="flex gap-2">
                     <button
@@ -438,7 +508,6 @@ export default function ValetManagement({ adminUser }) {
             ))
           )}
         </div>
-
         {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -452,6 +521,9 @@ export default function ValetManagement({ adminUser }) {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Employee ID
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
@@ -501,6 +573,18 @@ export default function ValetManagement({ adminUser }) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
+                        className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                          valet.isAdmin
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {valet.isAdmin && <Shield className="w-3 h-3 mr-1" />}
+                        {valet.isAdmin ? "Admin" : "Valet"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           valet.isActive
                             ? "bg-green-100 text-green-800"
@@ -536,6 +620,22 @@ export default function ValetManagement({ adminUser }) {
                           }
                         >
                           {valet.isActive ? "Deactivate" : "Activate"}
+                        </button>
+                        <button
+                          onClick={() =>
+                            toggleAdminRole(
+                              valet.id,
+                              valet.isAdmin,
+                              valet.fullName
+                            )
+                          }
+                          className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                            valet.isAdmin
+                              ? "bg-purple-100 text-purple-800 hover:bg-purple-200 border border-purple-300"
+                              : "bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-300"
+                          }`}
+                        >
+                          {valet.isAdmin ? "Remove Admin" : "Make Admin"}
                         </button>
                         <button
                           onClick={() => setEditingValet(valet)}
