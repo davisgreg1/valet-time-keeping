@@ -21,6 +21,28 @@ export default function ClockInButton({ user, onClockAction }) {
   const [lastAction, setLastAction] = useState(null);
   const [lastLocation, setLastLocation] = useState(null);
 
+  // Check if vibration is supported
+  const isVibrationSupported = () => {
+    return "vibrate" in navigator;
+  };
+
+  // Vibration function with different patterns for different actions
+  const triggerVibration = (actionType) => {
+    if (!isVibrationSupported()) return;
+
+    try {
+      if (actionType === "clock_in") {
+        // Double vibration for clock in
+        navigator.vibrate([200, 100, 200]);
+      } else {
+        // Single vibration for clock out
+        navigator.vibrate(300);
+      }
+    } catch (error) {
+      console.log("Vibration failed:", error);
+    }
+  };
+
   // Check initial clock status when component loads
   useEffect(() => {
     if (!user) return;
@@ -97,6 +119,9 @@ export default function ClockInButton({ user, onClockAction }) {
       // Save to Firestore
       await addDoc(collection(db, "clockIns"), clockData);
 
+      // Trigger haptic feedback on successful clock action
+      triggerVibration(actionType);
+
       setLastAction(actionType);
       setLastLocation(location.shortAddress);
       toast.success(
@@ -112,6 +137,11 @@ export default function ClockInButton({ user, onClockAction }) {
     } catch (error) {
       console.error("Clock action error:", error);
       toast.error("Failed to clock in/out. Please try again.");
+
+      // Error vibration pattern
+      if (isVibrationSupported()) {
+        navigator.vibrate([100, 50, 100, 50, 100]);
+      }
     } finally {
       setIsClocking(false);
     }
