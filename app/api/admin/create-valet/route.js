@@ -1,5 +1,3 @@
-// app/api/admin/create-valet/route.js
-
 import { NextResponse } from "next/server";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -60,11 +58,14 @@ export async function POST(request) {
       temporaryPassword: password,
     });
 
-    return NextResponse.json({
+    // Respond with success and redirect to admin dashboard
+    return NextResponse.json(
+      {
       success: true,
       uid: userRecord.uid,
       message: "Valet account created successfully",
-    });
+      }
+    );
   } catch (error) {
     console.error("Error creating valet account:", error);
 
