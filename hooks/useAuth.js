@@ -36,7 +36,6 @@ export const useAuth = () => {
 
               // If valet is deactivated, sign them out
               if (valetData.isActive === false) {
-                console.log("Valet account is deactivated, signing out...");
                 await auth.signOut();
                 setUser(null);
                 setUserProfile(null);
@@ -46,7 +45,6 @@ export const useAuth = () => {
             } else {
               // User exists in Firebase Auth but not in valets or admins collection
               // This might be a newly created user or an error condition
-              console.log("User not found in valets or admins collection");
               setUserProfile(null);
               setIsActive(false);
               // Don't automatically sign out - let the login page handle this

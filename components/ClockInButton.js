@@ -66,7 +66,6 @@ export default function ClockInButton({ user, onClockAction }) {
 
       const querySnapshot = await getDocs(q);
       const lastRecord = querySnapshot.docs[0]?.data();
-      console.log("🚀 ~ handleClockAction ~ lastRecord:", lastRecord);
 
       // Determine action type
       const actionType =
