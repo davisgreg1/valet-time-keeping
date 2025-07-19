@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Clock, MapPin, CheckCircle } from "lucide-react";
 import {
   collection,
@@ -21,6 +21,34 @@ export default function ClockInButton({ user, onClockAction }) {
   const [lastAction, setLastAction] = useState(null);
   const [lastLocation, setLastLocation] = useState(null);
 
+  // Check initial clock status when component loads
+  useEffect(() => {
+    if (!user) return;
+
+    const checkInitialStatus = async () => {
+      try {
+        const q = query(
+          collection(db, "clockIns"),
+          where("valetId", "==", user.uid),
+          orderBy("timestamp", "desc"),
+          limit(1)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const lastRecord = querySnapshot.docs[0]?.data();
+
+        if (lastRecord) {
+          setLastAction(lastRecord.action);
+          setLastLocation(lastRecord.location?.shortAddress || null);
+        }
+      } catch (error) {
+        console.error("Error checking initial clock status:", error);
+      }
+    };
+
+    checkInitialStatus();
+  }, [user]);
+
   const handleClockAction = async () => {
     setIsClocking(true);
 
@@ -38,6 +66,7 @@ export default function ClockInButton({ user, onClockAction }) {
 
       const querySnapshot = await getDocs(q);
       const lastRecord = querySnapshot.docs[0]?.data();
+      console.log("🚀 ~ handleClockAction ~ lastRecord:", lastRecord);
 
       // Determine action type
       const actionType =

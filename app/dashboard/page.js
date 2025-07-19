@@ -1,15 +1,15 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import AuthGuard from '@/components/AuthGuard';
-import Layout from '@/components/Layout';
-import ClockInButton from '@/components/ClockInButton';
-import ClockInHistory from '@/components/ClockInHistory';
-import TodaySummary from '@/components/TodaySummary';
-import LocationPermission from '@/components/LocationPermission';
-import LoadingSpinner from '@/components/LoadingSpinner';
-import { getCurrentLocation } from '@/utils/location';
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import AuthGuard from "@/components/AuthGuard";
+import Layout from "@/components/Layout";
+import ClockInButton from "@/components/ClockInButton";
+import ClockInHistory from "@/components/ClockInHistory";
+import TodaySummary from "@/components/TodaySummary";
+import LocationPermission from "@/components/LocationPermission";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import { getCurrentLocation } from "@/utils/location";
 
 export default function Dashboard() {
   const { user, userProfile, loading } = useAuth();
@@ -20,7 +20,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/login');
+      router.push("/auth/login");
       return;
     }
 
@@ -46,7 +46,7 @@ export default function Dashboard() {
 
   const handleClockAction = () => {
     // Trigger refresh of summary and history
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   if (loading || checkingLocation) {
@@ -71,14 +71,14 @@ export default function Dashboard() {
           {/* Welcome Section */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, {userProfile?.fullName || 'Valet'}!
+              Welcome back, {userProfile?.fullName || "Valet"}!
             </h1>
             <p className="text-gray-600">
-              {new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
               })}
             </p>
           </div>
@@ -96,9 +96,13 @@ export default function Dashboard() {
                   <h2 className="text-xl font-semibold text-gray-900 mb-6">
                     Clock In/Out
                   </h2>
-                  <ClockInButton user={user} onClockAction={handleClockAction} />
+                  <ClockInButton
+                    user={user}
+                    onClockAction={handleClockAction}
+                  />
                   <p className="text-sm text-gray-500 mt-4">
-                    Tap the button to clock in or out.<br />
+                    Tap the button to clock in or out.
+                    <br />
                     Your location will be automatically recorded.
                   </p>
                 </div>
