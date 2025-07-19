@@ -7,9 +7,11 @@ import {
   FileText,
   Menu,
   X,
+  ChevronDown,
+  Home,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { logOut } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -22,7 +24,20 @@ export default function AdminLayout({
   onTabChange,
 }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const router = useRouter();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isDropdownOpen && !event.target.closest(".user-dropdown")) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isDropdownOpen]);
 
   const handleLogout = async () => {
     const result = await logOut();
@@ -32,6 +47,27 @@ export default function AdminLayout({
     } else {
       toast.error("Failed to log out");
     }
+    setIsDropdownOpen(false);
+  };
+
+  const handleDashboardClick = () => {
+    router.push("/dashboard");
+    setIsDropdownOpen(false);
+  };
+
+  // Get user initials
+  const getUserInitials = () => {
+    if (adminProfile?.fullName) {
+      return adminProfile.fullName
+        .split(" ")
+        .map((name) => name.charAt(0).toUpperCase())
+        .slice(0, 2)
+        .join("");
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return "A";
   };
 
   const tabs = [
@@ -64,7 +100,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 relative z-50">
+      <header className="bg-white shadow-sm border-b border-gray-200 relative z-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
@@ -82,17 +118,82 @@ export default function AdminLayout({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-4">
-              <div className="hidden sm:block text-sm text-gray-600">
-                {adminProfile?.fullName || user?.email}
-              </div>
+            <div className="relative user-dropdown">
+              {/* User Menu Trigger */}
               <button
-                onClick={handleLogout}
-                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-md hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
+                {/* User Avatar Circle */}
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-600 text-white rounded-full flex items-center justify-center font-semibold text-sm sm:text-base flex-shrink-0">
+                  {getUserInitials()}
+                </div>
+
+                {/* User Name - Hidden on small screens */}
+                <div className="hidden sm:flex flex-col items-start min-w-0">
+                  <span className="text-sm font-medium text-gray-900 truncate max-w-32 lg:max-w-none">
+                    {adminProfile?.fullName || user?.email}
+                  </span>
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <Shield className="w-3 h-3" />
+                    Administrator
+                  </span>
+                </div>
+
+                {/* Dropdown Arrow */}
+                <ChevronDown
+                  className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+                    isDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  {/* User Info Section - Mobile Only */}
+                  <div className="block sm:hidden px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center font-semibold">
+                        {getUserInitials()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {adminProfile?.fullName || user?.email}
+                        </p>
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <Shield className="w-3 h-3" />
+                          Administrator
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="py-1">
+                    <button
+                      onClick={handleDashboardClick}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Home className="w-4 h-4 text-gray-400" />
+                      User Dashboard
+                    </button>
+
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4 text-gray-400" />
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Backdrop for mobile */}
+              {/* {isDropdownOpen && (
+                <div className="fixed inset-0 z-40 bg-black opacity-50 sm:hidden" />
+              )} */}
             </div>
           </div>
         </div>
@@ -183,12 +284,12 @@ export default function AdminLayout({
       </main>
 
       {/* Overlay for mobile menu */}
-      {isMobileMenuOpen && (
+      {/* {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-25 z-40 lg:hidden"
+          className="fixed inset-0 bg-black opacity-50 z-40 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
-      )}
+      )} */}
     </div>
   );
 }
