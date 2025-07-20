@@ -156,7 +156,7 @@ export default function ClockInButton({ user, onClockAction }) {
           lastAction === "clock_in" ? "bg-red-600" : "bg-green-600"
         } ${
           lastAction === "clock_in" ? "hover:bg-red-700" : "hover:bg-green-700"
-        } disabled:opacity-50 disabled:cursor-not-allowed rounded-full text-white shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95`}
+        } disabled:opacity-50 disabled:cursor-not-allowed rounded-full text-white transform transition-all duration-200 hover:scale-105 active:scale-95`}
       >
         {isClocking ? (
           <div className="flex flex-col items-center">
