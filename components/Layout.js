@@ -6,6 +6,7 @@ import { auth, db } from "@/lib/firebase";
 import { logOut } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import Footer from "./Footer";
 
 export default function Layout({ children, user, userProfile }) {
   const router = useRouter();
@@ -215,6 +216,7 @@ export default function Layout({ children, user, userProfile }) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
+      <Footer />
     </div>
   );
 }
