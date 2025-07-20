@@ -15,6 +15,7 @@ import { useState, useEffect } from "react";
 import { logOut } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import Footer from "@/components/Footer";
 
 export default function AdminLayout({
   children,
@@ -290,6 +291,7 @@ export default function AdminLayout({
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )} */}
+      <Footer />
     </div>
   );
 }
